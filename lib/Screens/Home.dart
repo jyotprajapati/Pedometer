@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:s4s_test/SharePrefMethods.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -11,42 +11,32 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  StreamSubscription<StepCount>? _subscription;
-  int _steps = 0;
-  bool isRunning = false;
-  int stepsYet = 0;
-  int displaySteps = 0;
-
-  resetSteps() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('stepsyet', 0);
-    print((prefs.getInt('stepsyet')));
-  }
+  StreamSubscription<StepCount>? _subscription; //Pedometer Stream Subscription
+  int _steps = 0; //Steps given by pedometer stream
+  bool isRunning = false; //Sets the state of Start/Stop Button
+  int stepsYet = 0; //Steps from the Shared Pref. i.e. Steps in the last session
+  int displaySteps = 0; //The step which are displayed on the screen
 
   void startPadometerListen() {
     setState(() {
-      isRunning = true;
+      isRunning = true; //Change state of the Start/Stop button
     });
     _subscription = Pedometer.stepCountStream.listen((event) async {
-      print(event);
       _steps = event.steps;
       if (_steps < stepsYet) {
-        // Upon device reboot, pedometer resets. When this happens, the saved counter must be reset as well.
-        await saveSteps();
+        // Upon device reboot, pedometer resets. When this happens, the saved steps must be reset as well.
+        await SharePrefMethods().saveSteps(_steps);
         stepsYet = 0;
-        // getStepsYet();
-        // {persist this value using a package of your choice here}
       }
+      //Subtract the saved steps from the current steps to get the steps only after start is pressed
       setState(() {
         displaySteps = _steps - stepsYet;
       });
       stepsYet = _steps;
-      // getStepsYet();
     });
-
-    print("pedo called");
   }
 
+  //GET PHYSICAL ACTIVITY PERMISSION
   Future<void> getPermission() async {
     if (await Permission.activityRecognition.request().isGranted) {
       startPadometerListen();
@@ -81,26 +71,17 @@ class _HomeState extends State<Home> {
     );
   }
 
-  getStepsYet() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    stepsYet = (prefs.getInt('stepsyet') ?? 0);
-    print('steps yet =  $stepsYet ');
-  }
-
-  startPedo() {
-    getStepsYet();
+  //Called when Start Button pressed
+  startPedo() async {
+    stepsYet = await SharePrefMethods().getStepsYet();
     getPermission();
   }
 
-  saveSteps() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('stepsyet', _steps);
-  }
-
+  //Called when Stop button Pressed
   stopPedo() async {
     _subscription?.cancel();
 
-    await saveSteps();
+    await SharePrefMethods().saveSteps(_steps);
     displaySteps = 0;
     setState(() {
       isRunning = false;
@@ -108,9 +89,9 @@ class _HomeState extends State<Home> {
   }
 
   @override
-  void dispose() async {
+  void dispose() {
     _subscription?.cancel();
-    await saveSteps();
+    SharePrefMethods().saveSteps(_steps);
     super.dispose();
   }
 }
