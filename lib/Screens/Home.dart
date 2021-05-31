@@ -16,11 +16,6 @@ class _HomeState extends State<Home> {
   bool isRunning = false;
   int stepsYet = 0;
   int displaySteps = 0;
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-  }
 
   resetSteps() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -38,12 +33,15 @@ class _HomeState extends State<Home> {
       if (_steps < stepsYet) {
         // Upon device reboot, pedometer resets. When this happens, the saved counter must be reset as well.
         await saveSteps();
-        getStepsYet();
+        stepsYet = 0;
+        // getStepsYet();
         // {persist this value using a package of your choice here}
       }
       setState(() {
         displaySteps = _steps - stepsYet;
       });
+      stepsYet = _steps;
+      // getStepsYet();
     });
 
     print("pedo called");
@@ -65,15 +63,18 @@ class _HomeState extends State<Home> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ElevatedButton(
-              onPressed: () => isRunning ? stopPedo() : startPedo(),
-              // onPressed: isRunning ? stopPedo() : startPedo(),
-              child: Text(isRunning ? "stop" : "Start"),
+            Flexible(
+              child: Text(
+                "$displaySteps",
+                style: TextStyle(fontSize: 75),
+              ),
             ),
-            Text(
-              "$displaySteps",
-              style: TextStyle(fontSize: 30),
-            )
+            Flexible(
+              child: ElevatedButton(
+                onPressed: () => isRunning ? stopPedo() : startPedo(),
+                child: Text(isRunning ? "stop" : "Start"),
+              ),
+            ),
           ],
         ),
       ),
@@ -107,8 +108,9 @@ class _HomeState extends State<Home> {
   }
 
   @override
-  void dispose() {
+  void dispose() async {
     _subscription?.cancel();
+    await saveSteps();
     super.dispose();
   }
 }
